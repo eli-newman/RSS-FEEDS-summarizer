@@ -1,0 +1,51 @@
+🧠 Project Overview: RSS Feed Summarizer AI
+
+This project is an intelligent RSS feed reader that leverages CrewAI, LangChain, and MCP to automate content discovery, filtering, summarization, and distribution across productivity tools like Notion, Slack, and Email. It’s designed to help knowledge workers (like engineers, product teams, and execs) stay on top of relevant insights—without being overwhelmed by noise.
+📌 End-to-End System Flow
+
+1. Fetch Articles from RSS Feeds
+Pull articles from a user-defined list of RSS feed URLs.
+Only retrieve articles published in the last 24 hours or past 7 days, based on user preference.
+Use the feedparser library to parse article metadata: title, link, published date, summary, and optionally full content.
+2. Filter Articles for Relevance
+Each article is analyzed by an LLM agent using a LangChain LLMChain to determine:
+"Is this article relevant to the topic or themes we're tracking (e.g. AI tools, ML research, startup innovation)?"
+Only relevant articles are passed to the next step. Irrelevant articles are discarded.
+3. Categorize Relevant Articles
+Based on article content, apply topical tags or categories like:
+📚 Research
+🧠 AI Tools
+📈 Industry News
+💡 Product Ideas
+This helps in organizing and routing articles later (e.g. AI → Notion; Business → Slack).
+4. Summarize Articles
+Relevant articles are sent to a summarizer agent that:
+Generates a one-paragraph summary with key insights.
+Appends the original article link for full reading.
+Optionally adds metadata like source name and publish date.
+5. Distribute Summaries to Target Channels
+Users can connect any combination of:
+🔔 Slack — daily/weekly digest sent to a team channel.
+📧 Email — personalized summary report.
+🧠 Notion — updates a table or database with article summaries and tags.
+Summaries are automatically routed based on category.
+6. Star or Highlight High-Impact Articles
+Option to mark articles as “🌟 insightful” using:
+Slack emoji reaction
+Notion property toggle
+Email reply with keyword
+Starred articles can trigger special workflows like:
+Saving to a "Big Ideas" section
+Sending to a founder, CTO, or PM
+Archiving in a dedicated Notion page for strategy reviews
+🎯 Project Goals
+
+Save time by automating news discovery.
+Keep teams informed on developments in their focus areas.
+Demonstrate practical use of CrewAI, LangChain, and MCP.
+Create a lightweight tool you and your coworkers will actually use.
+🛠️ Next Steps
+
+ Implement core agents (Fetcher, Filter, Summarizer, Publisher)
+ Deploy as a cron job or scheduled task
+ Add web interface or CLI to configure preferences
