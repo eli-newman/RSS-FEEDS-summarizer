@@ -30,45 +30,34 @@ class RSSFetcher:
                 # Add a small delay to avoid stressing servers
                 time.sleep(0.5)
                 
-                # First download the feed content with requests to ensure proper headers
+                # Download feed content with proper headers
                 response = requests.get(feed_url, headers=self.headers, timeout=15)
                 if response.status_code != 200:
                     print(f"Error fetching {feed_url}: HTTP status {response.status_code}")
                     continue
                 
-                # Parse the feed content with feedparser
+                # Parse the feed content
                 feed = feedparser.parse(response.text)
-                print(f"[DEBUG] Parsing {feed_url} — {len(feed.entries)} entries")
-                
-                # If no entries were found, try direct parsing
-                if len(feed.entries) == 0:
-                    print(f"[DEBUG] Retrying {feed_url} with direct feedparser.parse(url)")
-                    feed = feedparser.parse(feed_url)
-                    print(f"[DEBUG] After retry: {len(feed.entries)} entries")
-                
                 source_name = feed.feed.title if hasattr(feed.feed, 'title') else feed_url
                 
                 for entry in feed.entries:
-                    # Try structured parse first
+                    # Parse publication date
+                    pub_date = None
                     struct = entry.get('published_parsed') or entry.get('updated_parsed')
                     if struct:
                         pub_date = datetime.fromtimestamp(time.mktime(struct))
                     else:
-                        # Fall back to parsing the raw string
                         raw = entry.get('published') or entry.get('updated')
-                        print(f"[DEBUG]   Raw date for \"{entry.get('title', '–no title–')}\": {raw}")
-                        if not raw:
-                            continue
-                        try:
-                            pub_date = parser.parse(raw)
-                        except:
+                        if raw:
+                            try:
+                                pub_date = parser.parse(raw)
+                            except:
+                                continue
+                        else:
                             continue
 
-                    print(f"[DEBUG]   → {entry.get('title', '–no title–')} @ {pub_date.isoformat()}")
-                    
                     # Skip if article is older than our time window
                     if pub_date < cutoff_time:
-                        print(f"[DEBUG]     Skipping: older than cutoff ({cutoff_time.isoformat()})")
                         continue
                     
                     # Extract article data
@@ -90,17 +79,24 @@ class RSSFetcher:
             except Exception as e:
                 print(f"Error fetching from {feed_url}: {str(e)}")
         
+        print(f"Fetched {len(all_articles)} articles")
         return all_articles
 
 if __name__ == "__main__":
-    # Simple test
-    fetcher = RSSFetcher(time_window_hours=168)  # Temporarily set to 7 days for debugging
+    # Create fetcher and get articles
+    fetcher = RSSFetcher()
     articles = fetcher.fetch_articles()
-    print(f"Fetched {len(articles)} articles")
-    for i, article in enumerate(articles[:3]):  # Print first 3 for testing
-        print(f"\n--- Article {i+1} ---")
-        print(f"Title: {article['title']}")
-        print(f"Source: {article['source']}")
-        print(f"Published: {article['published']}")
-        print(f"Link: {article['link']}")
-        print(f"Summary: {article['summary'][:100]}...") 
+    
+    # Send articles to filter.py
+    try:
+        import filter
+        filtered_articles = filter.filter_articles(articles)
+        categorized_articles = filter.categorize_articles(filtered_articles)
+        
+        # Print summary of categorized articles
+        total_after_categorization = sum(len(articles_list) for articles_list in categorized_articles.values())
+        print(f"Total articles after categorization: {total_after_categorization}")
+    except ImportError:
+        print("Filter module not available. Only fetched articles.")
+        # Just print the number of fetched articles
+        print(f"Fetched {len(articles)} articles") 

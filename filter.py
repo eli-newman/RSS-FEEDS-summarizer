@@ -1,107 +1,97 @@
 """
-Article filter for relevance using LangChain
+Article filter for RSS feeds
 """
 from typing import List, Dict, Any
-from langchain.prompts import PromptTemplate
-from langchain_openai import ChatOpenAI
-from langchain.chains import LLMChain
 import config
-import os
 
-class ArticleFilter:
-    def __init__(self, topics=None, llm_model=None):
-        self.topics = topics or config.TOPICS_OF_INTEREST
-        model_name = llm_model or config.OPENAI_MODEL
-        
-        # Initialize LLM
-        self.llm = ChatOpenAI(
-            temperature=0.1,
-            model=model_name
-        )
-        
-        # Create prompt template for relevance checking
-        self.relevance_prompt = PromptTemplate(
-            input_variables=["article_title", "article_content", "topics"],
-            template="""
-            You are an AI assistant tasked with filtering articles for relevance.
-            
-            Article Title: {article_title}
-            
-            Article Content: {article_content}
-            
-            Topics of Interest: {topics}
-            
-            Is this article relevant to any of the topics of interest? 
-            Respond with only "YES" or "NO".
-            """
-        )
-        
-        # Create LLMChain for relevance checking
-        self.relevance_chain = LLMChain(
-            llm=self.llm,
-            prompt=self.relevance_prompt
-        )
+def filter_articles(articles: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Filter articles based on topics of interest from config.py
     
-    def is_article_relevant(self, article: Dict[str, Any]) -> bool:
-        """
-        Check if an article is relevant to the topics of interest
-        """
-        # Prepare content for analysis
-        article_title = article.get('title', '')
-        article_content = article.get('content', article.get('summary', ''))
+    Args:
+        articles: List of article dictionaries from the fetcher
         
-        # Truncate content to avoid token limits
-        max_content_length = 1000
-        if len(article_content) > max_content_length:
-            article_content = article_content[:max_content_length] + "..."
-        
-        # Run relevance check
-        try:
-            response = self.relevance_chain.invoke({
-                "article_title": article_title,
-                "article_content": article_content,
-                "topics": ", ".join(self.topics)
-            })
-            
-            # Check if response contains YES
-            return "YES" in response['text'].upper()
-        
-        except Exception as e:
-            print(f"Error checking relevance: {str(e)}")
-            # Default to True in case of error to avoid missing potentially relevant articles
-            return True
+    Returns:
+        Filtered list of articles
+    """
+    filtered_articles = []
+    topics = config.TOPICS_OF_INTEREST
     
-    def filter_articles(self, articles: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """
-        Filter a list of articles by relevance
-        """
-        relevant_articles = []
+    for article in articles:
+        # Check if any topic appears in the article title or content
+        title = article['title'].lower()
+        content = (article['content'] or '').lower()
+        summary = (article['summary'] or '').lower()
         
-        for article in articles:
-            if self.is_article_relevant(article):
-                relevant_articles.append(article)
+        for topic in topics:
+            topic_lower = topic.lower()
+            if (topic_lower in title or 
+                topic_lower in content or 
+                topic_lower in summary):
+                filtered_articles.append(article)
+                break  # No need to check other topics once we find a match
+    
+    print(f"Filtered from {len(articles)} to {len(filtered_articles)} articles")
+    return filtered_articles
+
+def categorize_articles(articles: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Categorize articles based on predefined categories in config.py
+    
+    Args:
+        articles: List of article dictionaries
         
-        return relevant_articles
+    Returns:
+        Dictionary mapping category names to lists of articles
+    """
+    categorized = {}
+    
+    # Initialize categories from config
+    for category in config.CATEGORIES.keys():
+        categorized[category] = []
+    
+    # Add a default "OTHER" category if not in config
+    if "OTHER" not in categorized:
+        categorized["OTHER"] = []
+    
+    # Simple categorization based on keywords
+    # This could be enhanced with ML-based classification in the future
+    for article in articles:
+        title = article['title'].lower()
+        content = (article['content'] or '').lower()
+        summary = (article['summary'] or '').lower()
+        
+        # For now, using a simple rule-based categorization
+        if any(term in title or term in content or term in summary 
+               for term in ['research', 'study', 'paper', 'published']):
+            categorized['RESEARCH'].append(article)
+        elif any(term in title or term in content or term in summary 
+                for term in ['tool', 'app', 'application', 'platform', 'launch']):
+            categorized['AI_TOOLS'].append(article)
+        elif any(term in title or term in content or term in summary 
+                for term in ['industry', 'company', 'business', 'market', 'startup']):
+            categorized['INDUSTRY_NEWS'].append(article)
+        elif any(term in title or term in content or term in summary 
+                for term in ['idea', 'concept', 'innovation', 'potential']):
+            categorized['PRODUCT_IDEAS'].append(article)
+        else:
+            categorized['OTHER'].append(article)
+    
+    # Print categorization summary
+    for category, articles_list in categorized.items():
+        if articles_list:  # Only print non-empty categories
+            print(f"Category {category}: {len(articles_list)} articles")
+    
+    return categorized
 
 if __name__ == "__main__":
-    # Simple test (requires OPENAI_API_KEY environment variable)
+    # For testing purposes
     from fetcher import RSSFetcher
     
-    # Check if API key is set
-    if not os.environ.get("OPENAI_API_KEY"):
-        print("Please set OPENAI_API_KEY environment variable")
-        exit(1)
-    
-    # Fetch some articles
+    # Fetch articles
     fetcher = RSSFetcher()
-    articles = fetcher.fetch_articles()
+    all_articles = fetcher.fetch_articles()
     
-    if not articles:
-        print("No articles fetched. Cannot test filtering.")
-        exit(1)
-    
-    # Filter articles
-    filter = ArticleFilter()
-    relevant_articles = filter.filter_articles(articles[:3])  # Test with first 3 articles
-    
-    print(f"Filtered {len(relevant_articles)} relevant articles out of 3 tested") 
+    # Filter and categorize
+    filtered = filter_articles(all_articles)
+    categorized = categorize_articles(filtered) 

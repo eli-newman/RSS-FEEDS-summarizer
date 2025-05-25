@@ -1,6 +1,11 @@
 """
 Configuration settings for RSS Feed Summarizer
 """
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # RSS Feed URLs - Add your preferred sources
 RSS_FEEDS = [
@@ -11,6 +16,8 @@ RSS_FEEDS = [
     "https://thesequence.substack.com/feed",
     "https://thegradient.pub/rss/",
     "https://aisnakeoil.substack.com/feed",
+    "https://blog.google/technology/ai/rss/",
+    "https://www.microsoft.com/en-us/research/blog/feed/",
     # Add more feeds here
 ]
 
@@ -57,6 +64,7 @@ DISTRIBUTION = {
 }
 
 # OpenAI API configuration
+OPENAI_API_KEY = os.getenv("OPENAIAPIKEY")
 OPENAI_MODEL = "gpt-4"  # Or another model like "gpt-3.5-turbo"
 
 # Logging configuration
