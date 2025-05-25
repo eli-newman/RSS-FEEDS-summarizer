@@ -4,7 +4,7 @@ AI-powered article summarizer
 import os
 import time
 from typing import List, Dict, Any
-import openai
+from openai import OpenAI
 from tqdm import tqdm
 import config
 
@@ -22,7 +22,7 @@ class ArticleSummarizer:
             raise ValueError("OpenAI API key is required")
         
         self.model = model or config.OPENAI_MODEL
-        openai.api_key = self.api_key
+        self.client = OpenAI(api_key=self.api_key)
     
     def summarize_article(self, article: Dict[str, Any]) -> str:
         """
@@ -47,7 +47,7 @@ class ArticleSummarizer:
             prompt = f"""Summarize the following article in EXACTLY 2 sentences. 
             The first sentence should capture the most important point.
             The second sentence should provide the most critical detail or implication.
-            Be direct and informative.
+            Be direct and informative. less is more. 
             
             Title: {title}
             
@@ -56,7 +56,7 @@ class ArticleSummarizer:
             Two-sentence summary:"""
             
             # Generate summary using OpenAI
-            response = openai.ChatCompletion.create(
+            response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant that creates concise, informative summaries of technical articles in exactly 2 sentences."},
