@@ -18,6 +18,9 @@ RSS_FEEDS = [
     "https://aisnakeoil.substack.com/feed",
     "https://blog.google/technology/ai/rss/",
     "https://www.microsoft.com/en-us/research/blog/feed/",
+    "https://openai.com/blog/rss.xml",
+    "https://blog.google/technology/ai/rss/",
+    "https://aws.amazon.com/blogs/machine-learning/feed/",
     # Add more feeds here
 ]
 
@@ -45,15 +48,10 @@ CATEGORIES = {
 
 # Distribution channels
 DISTRIBUTION = {
-    "slack": {
-        "enabled": False,
-        "webhook_url": "",  # Add your Slack webhook URL
-        "channel": "#ai-news",
-    },
     "email": {
         "enabled": True,  # Set to True to enable email distribution
-        "recipient": "elijn04@gmail.com",  # Add recipient email (e.g., your-email@gmail.com)
-        "sender": "elijn04@gmail.com",     # Add sender email (e.g., your-email@gmail.com)
+        "recipient": os.getenv("EMAIL_RECIPIENTS", ""),  # Comma-separated list of recipients from .env file
+        "sender": os.getenv("SMTP_USER", ""),     # Add sender email (e.g., your-email@gmail.com)
         "subject": "Your Daily AI News Digest",
         # Standard SMTP settings
         "smtp_server": "smtp.gmail.com",  # For Gmail
@@ -62,11 +60,6 @@ DISTRIBUTION = {
         "smtp_password": os.getenv("GMAIL_APP_PASSWORD"),  # For Gmail, use an App Password: https://myaccount.google.com/apppasswords
         # Yagmail specific (for Gmail)
         "use_yagmail": False,  # Set to True to use yagmail instead of standard SMTP
-    },
-    "notion": {
-        "enabled": False,
-        "token": "",      # Add your Notion API token
-        "database_id": "", # Add your Notion database ID
     }
 }
 
