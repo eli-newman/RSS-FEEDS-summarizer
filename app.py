@@ -7,6 +7,7 @@ from datetime import datetime
 from fetcher import RSSFetcher
 import filter
 from summarizer import ArticleSummarizer
+from distributor import MarkdownDistributor
 import config
 
 def run_pipeline():
@@ -16,6 +17,7 @@ def run_pipeline():
     2. Filter by topics of interest
     3. Categorize articles
     4. Generate AI summaries
+    5. Format and save markdown digest
     """
     start_time = time.time()
     print(f"=== Starting RSS Feed Pipeline at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ===")
@@ -40,6 +42,7 @@ def run_pipeline():
     categorized = filter.categorize_articles(filtered_articles)
     
     # Step 4: Generate AI summaries
+    all_summarized = []
     try:
         if config.OPENAI_API_KEY:
             print("\n--- Generating AI Summaries ---")
@@ -70,8 +73,19 @@ def run_pipeline():
                 
         else:
             print("\n--- Skipping AI Summarization (No API Key) ---")
+            all_summarized = filtered_articles  # Use filtered articles without summaries
     except Exception as e:
         print(f"\nError during summarization: {str(e)}")
+        all_summarized = filtered_articles  # Use filtered articles without summaries
+    
+    # Step 5: Generate markdown digest
+    try:
+        print("\n--- Generating Markdown Digest ---")
+        distributor = MarkdownDistributor()
+        filepath = distributor.distribute(all_summarized, categorized)
+        print(f"Markdown digest saved to: {filepath}")
+    except Exception as e:
+        print(f"\nError generating markdown digest: {str(e)}")
     
     # Final summary
     elapsed_time = time.time() - start_time
