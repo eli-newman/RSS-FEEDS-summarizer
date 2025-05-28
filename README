@@ -25,9 +25,7 @@ Appends the original article link for full reading.
 Optionally adds metadata like source name and publish date.
 5. Distribute Summaries to Target Channels
 Users can connect any combination of:
-🔔 Slack — daily/weekly digest sent to a team channel.
 📧 Email — personalized summary report.
-🧠 Notion — updates a table or database with article summaries and tags.
 Summaries are automatically routed based on category.
 6. Star or Highlight High-Impact Articles
 Option to mark articles as "🌟 insightful" using:
