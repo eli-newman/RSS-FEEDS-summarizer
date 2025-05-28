@@ -17,10 +17,12 @@ class ArticleSummarizer:
             api_key: OpenAI API key (defaults to config.OPENAI_API_KEY)
             model: OpenAI model to use for summarization
         """
+        # Set up OpenAI credentials
         self.api_key = api_key or config.OPENAI_API_KEY
         if not self.api_key:
             raise ValueError("OpenAI API key is required")
         
+        # Initialize OpenAI client with specified or default model
         self.model = model or config.OPENAI_MODEL
         self.client = OpenAI(api_key=self.api_key)
     
@@ -36,21 +38,21 @@ class ArticleSummarizer:
         Returns:
             List of selected tool articles
         """
+        # Handle empty or small lists
         if not tools:
             return []
-            
         if len(tools) <= max_tools:
             return tools
             
         print(f"Pre-selecting top {max_tools} tools from {len(tools)} Product Hunt tools...")
         
-        # Extract basic info from each tool
+        # Extract essential info for initial evaluation
         tool_info = []
         for tool in tools:
             title = tool.get('title', 'No Title')
             description = tool.get('summary', '')
             if not description and 'content' in tool:
-                # Extract a short description from content if available
+                # Get a preview of content if no summary available
                 content = tool.get('content', '')
                 description = content[:200] + "..." if len(content) > 200 else content
                 
@@ -60,7 +62,7 @@ class ArticleSummarizer:
             })
         
         try:
-            # Create a simple prompt to select the most promising tools
+            # Create evaluation prompt for GPT model
             prompt = f"""Based only on the titles and descriptions, select the {max_tools} most innovative and useful AI tools from this list of Product Hunt submissions.
             
             Consider:
@@ -77,7 +79,7 @@ class ArticleSummarizer:
             Do not include any explanation or other text.
             """
             
-            # Use a small model (e.g., gpt-3.5-turbo) to save costs
+            # Use GPT-3.5 for cost efficiency in initial screening
             response = self.client.chat.completions.create(
                 model="gpt-3.5-turbo",  # Using a smaller model to reduce costs
                 messages=[
@@ -88,11 +90,11 @@ class ArticleSummarizer:
                 temperature=0.3  # Low temperature for consistent selection
             )
             
-            # Parse the response
+            # Parse and process the response
             import json
             try:
                 response_text = response.choices[0].message.content.strip()
-                # Try to extract JSON if it's wrapped in backticks or other text
+                # Handle various JSON formatting cases
                 if "```json" in response_text:
                     json_start = response_text.find("```json") + 7
                     json_end = response_text.find("```", json_start)
@@ -104,15 +106,15 @@ class ArticleSummarizer:
                 
                 selected_titles = json.loads(response_text)
                 
-                # Match the selected titles with the original tool objects
+                # Match selected titles with original articles
                 selected_tools = []
                 for title in selected_titles:
-                    # Find the tool with this title
+                    # Find tools with matching titles (case-insensitive)
                     matching_tools = [t for t in tools if title.lower() in t.get('title', '').lower()]
                     if matching_tools:
                         selected_tools.append(matching_tools[0])
                 
-                # If we couldn't match all tools, fill the rest based on order
+                # Fill remaining slots if needed
                 if len(selected_tools) < max_tools:
                     remaining_tools = [t for t in tools if t not in selected_tools]
                     selected_tools.extend(remaining_tools[:max_tools - len(selected_tools)])
@@ -123,14 +125,14 @@ class ArticleSummarizer:
             except json.JSONDecodeError:
                 print("Error parsing JSON response from preselection")
                 print(f"Response content: {response.choices[0].message.content}")
-                # Fallback to first max_tools
+                # Fallback to chronological selection
                 return tools[:max_tools]
             
         except Exception as e:
             print(f"Error preselecting tools: {str(e)}")
             import traceback
             traceback.print_exc()
-            # Fallback to first max_tools
+            # Fallback to chronological selection
             return tools[:max_tools]
     
     def summarize_article(self, article: Dict[str, Any]) -> str:
@@ -143,16 +145,16 @@ class ArticleSummarizer:
         Returns:
             Concise AI-generated summary
         """
-        # Combine title and content
+        # Prepare article content for summarization
         title = article.get('title', '')
         content = article.get('content', article.get('summary', ''))
         
-        # Limit content length to avoid excessive token usage
+        # Truncate long content to avoid token limits
         if len(content) > 8000:
             content = content[:8000] + "..."
         
         try:
-            # Create prompt for summarization
+            # Create focused summarization prompt
             prompt = f"""Summarize the following article in EXACTLY 2 sentences. 
             The first sentence should capture the most important point.
             The second sentence should provide the most critical detail or implication.
@@ -172,7 +174,7 @@ class ArticleSummarizer:
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=100,
-                temperature=0.3  # Low temperature for more focused summary
+                temperature=0.3  # Low temperature for focused summary
             )
             
             summary = response.choices[0].message.content.strip()
@@ -180,7 +182,7 @@ class ArticleSummarizer:
             
         except Exception as e:
             print(f"Error summarizing article '{title}': {str(e)}")
-            # Return original summary if available, otherwise a snippet of content
+            # Fallback to original summary or content preview
             return article.get('summary', content[:200] + "...")
     
     def rank_product_hunt_tools(self, articles: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -193,7 +195,7 @@ class ArticleSummarizer:
         Returns:
             List of ranked articles with added 'tool_rank' and 'tool_score' fields
         """
-        # Filter only Product Hunt articles
+        # Filter for Product Hunt articles only
         product_hunt_articles = [a for a in articles if "Product Hunt" in a.get('source', '')]
         
         if not product_hunt_articles:
@@ -201,7 +203,7 @@ class ArticleSummarizer:
         
         print(f"Ranking {len(product_hunt_articles)} Product Hunt tools...")
         
-        # Prepare data for batch analysis
+        # Prepare tool data for analysis
         tool_data = []
         for article in product_hunt_articles:
             title = article.get('title', '')
@@ -209,7 +211,7 @@ class ArticleSummarizer:
             tool_data.append({"title": title, "summary": summary})
         
         try:
-            # Create prompt for ranking
+            # Create detailed evaluation prompt
             prompt = f"""Analyze these Product Hunt tools and rate each on a scale of 1-10 based on:
             1. Innovation (how novel and unique the tool is)
             2. Usefulness (practical value to users)
@@ -234,7 +236,7 @@ class ArticleSummarizer:
             ]
             """
             
-            # Generate ranking using OpenAI
+            # Generate rankings using OpenAI
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
@@ -245,11 +247,11 @@ class ArticleSummarizer:
                 temperature=0.2  # Low temperature for consistent ranking
             )
             
-            # Parse the response
+            # Parse and process the rankings
             import json
             try:
                 response_text = response.choices[0].message.content.strip()
-                # Try to extract JSON if it's wrapped in backticks or other text
+                # Handle various JSON formatting cases
                 if "```json" in response_text:
                     json_start = response_text.find("```json") + 7
                     json_end = response_text.find("```", json_start)
@@ -272,17 +274,17 @@ class ArticleSummarizer:
                 print(f"Response content: {response.choices[0].message.content}")
                 rankings = []
             
-            # Create a lookup of scores by title
+            # Create lookup table for scores and reasoning
             scores_by_title = {r.get('title', ''): (r.get('score', 0), r.get('reasoning', '')) for r in rankings}
             
-            # Add scores to original articles
+            # Apply scores to original articles
             for article in product_hunt_articles:
                 title = article.get('title', '')
                 score_data = scores_by_title.get(title, (0, ""))
                 article['tool_score'] = score_data[0]
                 article['tool_reasoning'] = score_data[1]
             
-            # Sort by score
+            # Sort articles by score
             ranked_articles = sorted(product_hunt_articles, key=lambda x: x.get('tool_score', 0), reverse=True)
             
             print(f"Ranked {len(ranked_articles)} Product Hunt tools")
@@ -308,16 +310,16 @@ class ArticleSummarizer:
         
         print(f"Generating AI summaries for {len(articles)} articles...")
         for article in tqdm(articles):
-            # Generate summary for all articles
+            # Generate summary for each article
             ai_summary = self.summarize_article(article)
             
-            # Add summary to article, replacing the original summary
+            # Create new article object with summary
             article_copy = article.copy()
             article_copy['ai_summary'] = ai_summary
             article_copy['summary'] = ai_summary  # Replace original summary
             summarized_articles.append(article_copy)
             
-            # Brief pause to avoid rate limits
+            # Rate limiting for API calls
             time.sleep(0.5)
             
         return summarized_articles

@@ -411,10 +411,16 @@ class MarkdownDistributor:
                 # Determine which email method to use
                 use_yagmail = email_config.get('use_yagmail', False)
                 
+                # Send using only one method
                 if use_yagmail and YAGMAIL_AVAILABLE:
-                    self.send_email_yagmail(markdown_content, html_content)
+                    print("Using yagmail for email distribution...")
+                    success = self.send_email_yagmail(markdown_content, html_content)
                 else:
-                    self.send_email_smtp(markdown_content, html_content)
+                    print("Using standard SMTP for email distribution...")
+                    success = self.send_email_smtp(markdown_content, html_content)
+                
+                if not success:
+                    print("Failed to send email. Check the error messages above.")
                     
             except Exception as e:
                 print(f"Error during email distribution: {str(e)}")

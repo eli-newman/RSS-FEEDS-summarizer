@@ -11,8 +11,11 @@ import requests
 
 class RSSFetcher:
     def __init__(self, feeds: List[str] = None, time_window_hours: int = None):
+        # Use configured feeds and time window or provided values
         self.feeds = feeds or config.RSS_FEEDS
         self.time_window = time_window_hours or config.TIME_WINDOW
+        
+        # Set user agent and headers for polite scraping
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:78.0) Gecko/20100101 Firefox/78.0',
             'Accept': 'application/rss+xml, application/atom+xml, application/xml, text/xml'
@@ -23,25 +26,28 @@ class RSSFetcher:
         Fetch articles from all configured RSS feeds within the specified time window
         """
         all_articles = []
+        # Calculate cutoff time for article freshness
         cutoff_time = datetime.now() - timedelta(hours=self.time_window)
         
+        # Process each feed URL
         for feed_url in self.feeds:
             try:
-                # Add a small delay to avoid stressing servers
+                # Rate limiting to be polite to servers
                 time.sleep(0.5)
                 
-                # Download feed content with proper headers
+                # Fetch feed content with proper headers
                 response = requests.get(feed_url, headers=self.headers, timeout=15)
                 if response.status_code != 200:
                     print(f"Error fetching {feed_url}: HTTP status {response.status_code}")
                     continue
                 
-                # Parse the feed content
+                # Parse the feed and extract source name
                 feed = feedparser.parse(response.text)
                 source_name = feed.feed.title if hasattr(feed.feed, 'title') else feed_url
                 
+                # Process each article in the feed
                 for entry in feed.entries:
-                    # Parse publication date
+                    # Handle various date formats
                     pub_date = None
                     struct = entry.get('published_parsed') or entry.get('updated_parsed')
                     if struct:
@@ -56,11 +62,11 @@ class RSSFetcher:
                         else:
                             continue
 
-                    # Skip if article is older than our time window
+                    # Skip older articles outside our time window
                     if pub_date < cutoff_time:
                         continue
                     
-                    # Extract article data
+                    # Extract and normalize article data
                     article = {
                         'title': entry.title if hasattr(entry, 'title') else 'No Title',
                         'link': entry.link if hasattr(entry, 'link') else '',
@@ -70,7 +76,7 @@ class RSSFetcher:
                         'source': source_name
                     }
                     
-                    # If no content available, use summary as content
+                    # Use summary as content if no content available
                     if not article['content']:
                         article['content'] = article['summary']
                     
@@ -98,5 +104,4 @@ if __name__ == "__main__":
         print(f"Total articles after categorization: {total_after_categorization}")
     except ImportError:
         print("Filter module not available. Only fetched articles.")
-        # Just print the number of fetched articles
         print(f"Fetched {len(articles)} articles") 

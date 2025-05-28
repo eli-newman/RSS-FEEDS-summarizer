@@ -21,6 +21,9 @@ RSS_FEEDS = [
     "https://openai.com/blog/rss.xml",
     "https://blog.google/technology/ai/rss/",
     "https://aws.amazon.com/blogs/machine-learning/feed/",
+    "https://arxiv.org/rss/cs.LG", #Latest peer-reviewed papers, including model evaluations and benchmarks.
+    "https://www.kdnuggets.com/feed" #Covers model comparisons, benchmarks, and AI trends.
+
     # Add more feeds here
 ]
 
