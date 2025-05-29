@@ -89,19 +89,7 @@ class RSSFetcher:
         return all_articles
 
 if __name__ == "__main__":
-    # Create fetcher and get articles
+    # Test fetcher
     fetcher = RSSFetcher()
     articles = fetcher.fetch_articles()
-    
-    # Send articles to filter.py
-    try:
-        import filter
-        filtered_articles = filter.filter_articles(articles)
-        categorized_articles = filter.categorize_articles(filtered_articles)
-        
-        # Print summary of categorized articles
-        total_after_categorization = sum(len(articles_list) for articles_list in categorized_articles.values())
-        print(f"Total articles after categorization: {total_after_categorization}")
-    except ImportError:
-        print("Filter module not available. Only fetched articles.")
-        print(f"Fetched {len(articles)} articles") 
+    print(f"Fetched {len(articles)} articles") 

@@ -17,13 +17,6 @@ except ImportError:
     MARKDOWN_AVAILABLE = False
     print("Warning: markdown module not found. Install with 'pip install markdown' to enable HTML conversion.")
 
-try:
-    import yagmail
-    YAGMAIL_AVAILABLE = True
-except ImportError:
-    YAGMAIL_AVAILABLE = False
-    print("Warning: yagmail module not found. Install with 'pip install yagmail' for Gmail support.")
-
 class MarkdownDistributor:
     def __init__(self, output_dir="output"):
         """
@@ -37,13 +30,15 @@ class MarkdownDistributor:
             os.makedirs(output_dir)
     
     def format_articles(self, articles: List[Dict[str, Any]], 
-                         categorized: Dict[str, List[Dict[str, Any]]]) -> str:
+                         categorized: Dict[str, List[Dict[str, Any]]], 
+                         daily_overview: str = None) -> str:
         """
         Format articles into nice markdown optimized for email
         
         Args:
             articles: List of all summarized articles
             categorized: Dictionary of articles by category
+            daily_overview: Daily digest overview from macro summary agent
             
         Returns:
             Formatted markdown string
@@ -52,7 +47,14 @@ class MarkdownDistributor:
         
         # Start with the header
         markdown = f"# AI News Digest - {today}\n\n"
-        markdown += f"## Summary\n"
+        
+        # Add daily overview if provided (from Macro Summary Agent)
+        if daily_overview:
+            markdown += f"## 📊 Daily Overview\n\n"
+            markdown += f"{daily_overview}\n\n"
+        
+        # Add summary stats
+        markdown += f"## 📈 Summary\n"
         markdown += f"*{len(articles)} articles from {len(set([a.get('source', 'Unknown') for a in articles]))} sources*\n\n"
         
         # Process special categories first
@@ -112,7 +114,7 @@ class MarkdownDistributor:
                 continue
                 
             # Get emoji for category
-            emoji = config.CATEGORIES.get(category, "")
+            emoji = config.CATEGORIES.get(category, {}).get("emoji", "")
             
             # Sort by date if available
             sorted_articles = sorted(
@@ -269,7 +271,7 @@ class MarkdownDistributor:
         print("\n--- Email Configuration Debug ---")
         print(f"Email enabled: {email_config.get('enabled')}")
         print(f"Sender: {sender}")
-        print(f"Recipient: {recipient}")
+        print(f"Recipients (BCC): {recipient}")
         print(f"SMTP Server: {smtp_server}")
         print(f"SMTP Port: {smtp_port}")
         print(f"SMTP User: {smtp_user}")
@@ -286,13 +288,14 @@ class MarkdownDistributor:
             return False
         
         try:
-            print(f"\nAttempting to send email to {recipient}")
+            print(f"\nAttempting to send email to BCC recipients")
             
             # Create message
             msg = MIMEMultipart("alternative")
             msg["Subject"] = subject
             msg["From"] = sender
-            msg["To"] = recipient
+            msg["To"] = sender  # Set To as sender
+            msg["Bcc"] = recipient  # Add recipients as BCC
             
             # Attach plain text and HTML versions
             msg.attach(MIMEText(markdown_content, "plain"))
@@ -303,10 +306,10 @@ class MarkdownDistributor:
             with smtplib.SMTP_SSL(smtp_server, smtp_port) as server:
                 print(f"Logging in as {smtp_user}...")
                 server.login(smtp_user, smtp_password)
-                print(f"Sending email from {sender} to {recipient}...")
-                server.sendmail(sender, recipient.split(','), msg.as_string())
+                print(f"Sending email from {sender} with {recipient.count(',') + 1} BCC recipients...")
+                server.sendmail(sender, [sender] + recipient.split(','), msg.as_string())
                 
-            print(f"Email sent to {recipient}")
+            print(f"Email sent successfully to {recipient.count(',') + 1} BCC recipients")
             return True
             
         except Exception as e:
@@ -315,85 +318,22 @@ class MarkdownDistributor:
             traceback.print_exc()
             return False
     
-    def send_email_yagmail(self, markdown_content: str, html_content: str) -> bool:
-        """
-        Send email using yagmail (Gmail)
-        
-        Args:
-            markdown_content: Plain text markdown content
-            html_content: HTML formatted content
-            
-        Returns:
-            True if successful, False otherwise
-        """
-        if not YAGMAIL_AVAILABLE:
-            print("yagmail not installed. Install with 'pip install yagmail'")
-            return False
-            
-        email_config = config.DISTRIBUTION.get('email', {})
-        if not email_config.get('enabled', False):
-            print("Email distribution not enabled in config.")
-            return False
-        
-        sender = email_config.get('sender', '')
-        recipient = email_config.get('recipient', '')
-        subject = email_config.get('subject', 'AI News Digest')
-        smtp_password = email_config.get('smtp_password', '')
-        
-        # Debug information
-        print("\n--- Yagmail Configuration Debug ---")
-        print(f"Email enabled: {email_config.get('enabled')}")
-        print(f"Sender: {sender}")
-        print(f"Recipient: {recipient}")
-        print(f"Password set: {bool(smtp_password)}")
-        
-        if not (sender and recipient and smtp_password):
-            print("Missing email configuration. Check config.py")
-            missing = []
-            if not sender: missing.append("sender")
-            if not recipient: missing.append("recipient")
-            if not smtp_password: missing.append("smtp_password")
-            print(f"Missing values: {', '.join(missing)}")
-            return False
-        
-        try:
-            print(f"\nAttempting to send email using yagmail to {recipient}")
-            
-            # Initialize yagmail
-            yag = yagmail.SMTP(sender, smtp_password)
-            
-            # Send email
-            recipients_list = recipient.split(',')
-            print(f"Sending to recipients: {recipients_list}")
-            yag.send(
-                to=recipients_list,
-                subject=subject,
-                contents=[markdown_content, html_content]
-            )
-            
-            print(f"Email sent to {recipient} using yagmail")
-            return True
-            
-        except Exception as e:
-            print(f"Error sending email with yagmail: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            return False
-    
     def distribute(self, articles: List[Dict[str, Any]], 
-                   categorized: Dict[str, List[Dict[str, Any]]]) -> str:
+                   categorized: Dict[str, List[Dict[str, Any]]], 
+                   daily_overview: str = None) -> str:
         """
         Format articles and distribute as markdown file and optionally email
         
         Args:
             articles: List of all summarized articles
             categorized: Dictionary of articles by category
+            daily_overview: Daily digest overview from macro summary agent
             
         Returns:
             Path to saved markdown file
         """
         # Generate markdown
-        markdown_content = self.format_articles(articles, categorized)
+        markdown_content = self.format_articles(articles, categorized, daily_overview)
         
         # Save to file
         filepath = self.save_markdown(markdown_content)
@@ -408,16 +348,9 @@ class MarkdownDistributor:
                 # Convert markdown to HTML
                 html_content = self.markdown_to_html(markdown_content)
                 
-                # Determine which email method to use
-                use_yagmail = email_config.get('use_yagmail', False)
-                
-                # Send using only one method
-                if use_yagmail and YAGMAIL_AVAILABLE:
-                    print("Using yagmail for email distribution...")
-                    success = self.send_email_yagmail(markdown_content, html_content)
-                else:
-                    print("Using standard SMTP for email distribution...")
-                    success = self.send_email_smtp(markdown_content, html_content)
+                # Send using standard SMTP
+                print("Using standard SMTP for email distribution...")
+                success = self.send_email_smtp(markdown_content, html_content)
                 
                 if not success:
                     print("Failed to send email. Check the error messages above.")
@@ -431,11 +364,10 @@ class MarkdownDistributor:
         
         return filepath
 
-# Add this function to app.py to use the distributor
-def use_distributor(articles, categorized):
+def use_distributor(articles, categorized, daily_overview=None):
     """
     Use the distributor to format and save articles
     """
     distributor = MarkdownDistributor()
-    filepath = distributor.distribute(articles, categorized)
+    filepath = distributor.distribute(articles, categorized, daily_overview)
     return filepath
