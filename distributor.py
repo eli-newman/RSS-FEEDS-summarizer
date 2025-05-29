@@ -245,7 +245,7 @@ class MarkdownDistributor:
     
     def send_email_smtp(self, markdown_content: str, html_content: str) -> bool:
         """
-        Send email using standard SMTP library
+        Send individual emails for maximum privacy
         
         Args:
             markdown_content: Plain text markdown content
@@ -260,60 +260,79 @@ class MarkdownDistributor:
             return False
         
         sender = email_config.get('sender', '')
-        recipient = email_config.get('recipient', '')
+        recipients_str = email_config.get('recipient', '')
         subject = email_config.get('subject', 'AI News Digest')
         smtp_server = email_config.get('smtp_server', '')
         smtp_port = email_config.get('smtp_port', 465)
         smtp_user = email_config.get('smtp_user', sender)
         smtp_password = email_config.get('smtp_password', '')
         
+        # Parse recipients list
+        recipients = [email.strip() for email in recipients_str.split(',') if email.strip()]
+        
         # Debug information
         print("\n--- Email Configuration Debug ---")
         print(f"Email enabled: {email_config.get('enabled')}")
         print(f"Sender: {sender}")
-        print(f"Recipients (BCC): {recipient}")
+        print(f"Recipients: {len(recipients)} individual emails (maximum privacy)")
         print(f"SMTP Server: {smtp_server}")
         print(f"SMTP Port: {smtp_port}")
         print(f"SMTP User: {smtp_user}")
         print(f"SMTP Password: {'*' * (len(smtp_password) if smtp_password else 0)}")
         
-        if not (sender and recipient and smtp_server and smtp_password):
+        if not (sender and recipients and smtp_server and smtp_password):
             print("Missing email configuration. Check config.py")
             missing = []
             if not sender: missing.append("sender")
-            if not recipient: missing.append("recipient")
+            if not recipients: missing.append("recipients")
             if not smtp_server: missing.append("smtp_server")
             if not smtp_password: missing.append("smtp_password")
             print(f"Missing values: {', '.join(missing)}")
             return False
         
         try:
-            print(f"\nAttempting to send email to BCC recipients")
+            print(f"\nSending {len(recipients)} individual emails for maximum privacy...")
             
-            # Create message
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = subject
-            msg["From"] = sender
-            msg["To"] = sender  # Set To as sender
-            msg["Bcc"] = recipient  # Add recipients as BCC
-            
-            # Attach plain text and HTML versions
-            msg.attach(MIMEText(markdown_content, "plain"))
-            msg.attach(MIMEText(html_content, "html"))
-            
-            # Send email
-            print(f"Connecting to {smtp_server}:{smtp_port} using SSL...")
+            # Connect once and send individual emails
             with smtplib.SMTP_SSL(smtp_server, smtp_port) as server:
+                print(f"Connecting to {smtp_server}:{smtp_port} using SSL...")
                 print(f"Logging in as {smtp_user}...")
                 server.login(smtp_user, smtp_password)
-                print(f"Sending email from {sender} with {recipient.count(',') + 1} BCC recipients...")
-                server.sendmail(sender, [sender] + recipient.split(','), msg.as_string())
                 
-            print(f"Email sent successfully to {recipient.count(',') + 1} BCC recipients")
-            return True
+                successful_sends = 0
+                failed_sends = 0
+                
+                # Send individual email to each recipient
+                for i, recipient in enumerate(recipients, 1):
+                    try:
+                        # Create individual message for each recipient
+                        msg = MIMEMultipart("alternative")
+                        msg["Subject"] = subject
+                        msg["From"] = sender
+                        msg["To"] = recipient
+                        
+                        # Attach plain text and HTML versions
+                        msg.attach(MIMEText(markdown_content, "plain"))
+                        msg.attach(MIMEText(html_content, "html"))
+                        
+                        # Send individual email
+                        server.sendmail(sender, [recipient], msg.as_string())
+                        print(f"  ✅ {i}/{len(recipients)}: Sent to {recipient}")
+                        successful_sends += 1
+                        
+                    except Exception as e:
+                        print(f"  ❌ {i}/{len(recipients)}: Failed to send to {recipient}: {str(e)}")
+                        failed_sends += 1
+                
+            print(f"\n📧 Email Summary:")
+            print(f"  • Successful: {successful_sends}")
+            print(f"  • Failed: {failed_sends}")
+            print(f"  • Total: {len(recipients)}")
+            
+            return successful_sends > 0
             
         except Exception as e:
-            print(f"Error sending email: {str(e)}")
+            print(f"Error with SMTP connection: {str(e)}")
             import traceback
             traceback.print_exc()
             return False
