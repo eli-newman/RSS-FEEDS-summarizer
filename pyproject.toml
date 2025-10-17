@@ -1,0 +1,132 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rss-feed-summarizer"
+version = "1.0.0"
+description = "An intelligent RSS feed processor that fetches, filters, ranks, summarizes, and distributes AI technology news"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Your Name", email = "your.email@example.com"}
+]
+maintainers = [
+    {name = "Your Name", email = "your.email@example.com"}
+]
+keywords = ["rss", "news", "ai", "summarization", "openai", "email", "automation"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Text Processing :: Markup",
+    "Topic :: Communications :: Email",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "feedparser>=6.0.10",
+    "langchain>=0.1.0",
+    "langchain-openai>=0.0.2",
+    "openai>=1.3.0",
+    "python-dateutil>=2.8.2",
+    "requests>=2.31.0",
+    "beautifulsoup4>=4.12.2",
+    "python-dotenv>=1.0.0",
+    "tqdm>=4.62.0",
+    "markdown>=3.4.0",
+    "SQLAlchemy>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+]
+email = [
+    "yagmail>=0.15.293",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/rss-feed-summarizer"
+Documentation = "https://github.com/yourusername/rss-feed-summarizer#readme"
+Repository = "https://github.com/yourusername/rss-feed-summarizer"
+"Bug Tracker" = "https://github.com/yourusername/rss-feed-summarizer/issues"
+
+[project.scripts]
+rss-summarizer = "rss_feed_summarizer.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["rss_feed_summarizer*"]
+
+[tool.setuptools.package-data]
+rss_feed_summarizer = [
+    "config/*.yaml",
+    "examples/*.yaml", 
+    "templates/*.html",
+]
+
+[tool.black]
+line-length = 88
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--verbose",
+    "--cov=rss_feed_summarizer",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
